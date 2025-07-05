@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block content %}
+  <a class="btn btn-primary mb-3" href="{% url 'mailing:message-create' %}">➕ Создать сообщение</a>
+
+  <ul class="list-group">
+    {% for message in object_list %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <strong>{{ message.subject }}</strong>
+        <span>
+          <a class="btn btn-sm btn-outline-secondary"
+             href="{% url 'mailing:message-edit' message.pk %}"
+             title="Редактировать сообщение">
+            ✏️
+          </a>
+          <a class="btn btn-sm btn-outline-danger"
+             href="{% url 'mailing:message-delete' message.pk %}"
+             title="Удалить сообщение">
+            🗑️
+          </a>
+        </span>
+      </li>
+    {% empty %}
+      <li class="list-group-item">Сообщений пока нет</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

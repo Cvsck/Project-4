@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2 class="mb-4">Мои рассылки</h2>
+  <a class="btn btn-primary mb-3" href="{% url 'mailing:mailing-create' %}">➕ Создать рассылку</a>
+  <ul class="list-group">
+    {% for mailing in mailings %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <strong>{{ mailing.message.subject }}</strong><br>
+          <small>
+            Статус: {{ mailing.get_status_display }} |
+            Периодичность: {{ mailing.get_periodicity_display }}
+          </small>
+        </div>
+        <span class="btn-group">
+          <a class="btn btn-sm btn-outline-primary" href="{% url 'mailing:mailing-send' mailing.pk %}" title="Отправить сейчас">📤</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'mailing:mailing-edit' mailing.pk %}" title="Редактировать">✏️</a>
+          <a class="btn btn-sm btn-outline-danger" href="{% url 'mailing:mailing-delete' mailing.pk %}" title="Удалить">🗑️</a>
+        </span>
+      </li>
+    {% empty %}
+      <li class="list-group-item">Рассылок пока нет</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2 class="mb-4">Мои клиенты</h2>
+  <a class="btn btn-primary mb-3" href="{% url 'mailing:client-create' %}">➕ Добавить клиента</a>
+  <ul class="list-group">
+    {% for client in clients %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <strong>{{ client.full_name }}</strong> — {{ client.email }}
+          {% if client.comment %}<br><small>{{ client.comment }}</small>{% endif %}
+        </div>
+        <span>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'mailing:client-edit' client.pk %}">✏️</a>
+          <a class="btn btn-sm btn-outline-danger" href="{% url 'mailing:client-delete' client.pk %}">🗑️</a>
+        </span>
+      </li>
+    {% empty %}
+      <li class="list-group-item">Клиентов пока нет</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-5">
+  <div class="row align-items-center">
+    <div class="col-md-6">
+      <h1 class="mb-4">Добро пожаловать в сервис рассылок 📬</h1>
+      <p class="lead">Управляйте клиентами, создавайте сообщения и запускайте email-рассылки с логированием и автоматизацией.</p>
+      <div class="mt-4">
+        <a href="{% url 'mailing:client-list' %}" class="btn btn-outline-primary me-2">👥 Клиенты</a>
+        <a href="{% url 'mailing:message-list' %}" class="btn btn-outline-success me-2">✉️ Сообщения</a>
+        <a href="{% url 'mailing:mailing-list' %}" class="btn btn-outline-info">📤 Рассылки</a>
+      </div>
+    </div>
+    <div class="col-md-6 text-center">
+      <img src="https://unblast.com/wp-content/uploads/2022/11/Email-Marketing-Illustration.jpg" alt="Email Marketing" class="img-fluid rounded shadow">
+    </div>
+  </div>
+</div>
+{% endblock %}
