@@ -26,10 +26,13 @@ class HomePageView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["client_count"] = Client.objects.count()
-        context["message_count"] = Message.objects.count()
         context["mailing_count"] = Mailing.objects.count()
-        context["success_count"] = Attempt.objects.filter(status="success").count()
+        context["active_mailing_count"] = Mailing.objects.filter(
+            status="Запущена"
+        ).count()
+        context["unique_recipient_count"] = (
+            Client.objects.values("email").distinct().count()
+        )
         return context
 
 
