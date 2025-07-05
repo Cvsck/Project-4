@@ -1,7 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_control, cache_page
+from django.views.decorators.cache import cache_control, cache_page, never_cache
 from django.views.generic import (
     ListView,
     CreateView,
@@ -20,7 +20,7 @@ from .forms import MessageForm, ClientForm, MailingForm
 
 
 # 🏠 Главная страница со статистикой
-@method_decorator(cache_page(300), name="dispatch")
+@method_decorator(never_cache, name="dispatch")
 class HomePageView(TemplateView):
     template_name = "home.html"
 
