@@ -1,5 +1,7 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm, UserChangeForm
+from django.contrib import messages
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm, AuthenticationForm
+from django.core.exceptions import ValidationError
 from django_countries.widgets import CountrySelectWidget
 
 from .models import CustomUser
@@ -30,3 +32,11 @@ class CustomUserChangeForm(UserChangeForm):
             "phone": forms.TextInput(attrs={"class": "form-control"}),
             "country": CountrySelectWidget(attrs={"class": "form-select"}),
         }
+
+
+# ✅ Кастомная форма входа с проверкой блокировки
+class CustomAuthenticationForm(AuthenticationForm):
+    def confirm_login_allowed(self, user):
+        if user.is_blocked:
+            messages.error(self.request, "Ваш аккаунт заблокирован.")  # ✅ всплывающее сообщение
+            raise ValidationError("", code="blocked")  # пустая ошибка, чтобы остановить вход

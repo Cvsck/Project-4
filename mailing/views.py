@@ -1,3 +1,4 @@
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
@@ -17,6 +18,7 @@ from django.conf import settings
 
 from .models import Message, Client, Mailing, Attempt
 from .forms import MessageForm, ClientForm, MailingForm
+from django.db.models import F
 
 
 # 🏠 Главная страница со статистикой
@@ -26,14 +28,22 @@ class HomePageView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
         context["mailing_count"] = Mailing.objects.count()
-        context["active_mailing_count"] = Mailing.objects.filter(
-            status="Запущена"
-        ).count()
-        context["unique_recipient_count"] = (
-            Client.objects.values("email").distinct().count()
+        context["active_mailing_count"] = Mailing.objects.filter(status="Запущена").count()
+
+        # ✅ Только email клиентов, исключая тех, у кого email совпадает с владельцем
+        context["unique_recipient_emails"] = (
+            Client.objects.exclude(email=F("owner__email"))
+            .filter(mailing__isnull=False)
+            .values_list("email", flat=True)
+            .distinct()
         )
+
+        context["unique_recipient_count"] = context["unique_recipient_emails"].count()
+
         return context
+
 
 
 # 📬 Сообщения
@@ -93,19 +103,27 @@ class ClientListView(LoginRequiredMixin, ListView):
     template_name = "mailing/client_list.html"
     context_object_name = "clients"
 
-    def get_queryset(self):
+    def get_queryset(self):  # ✅ модератор видит всех клиентов
+        if self.request.user.is_staff:
+            return Client.objects.all()
         return Client.objects.filter(owner=self.request.user)
 
 
-class ClientCreateView(LoginRequiredMixin, CreateView):
+
+class ClientCreateView(CreateView):
     model = Client
     form_class = ClientForm
     template_name = "mailing/client_form.html"
     success_url = reverse_lazy("mailing:client-list")
 
     def form_valid(self, form):
+        # ❗ Запрещаем добавлять самого себя как клиента
+        if form.cleaned_data["email"] == self.request.user.email:
+            form.add_error("email", "Нельзя добавить самого себя как клиента.")
+            return self.form_invalid(form)
+
+        # ✅ Привязываем клиента к текущему пользователю
         form.instance.owner = self.request.user
-        messages.success(self.request, "Клиент успешно добавлен.")
         return super().form_valid(form)
 
 
@@ -116,6 +134,8 @@ class ClientUpdateView(LoginRequiredMixin, UpdateView):
     success_url = reverse_lazy("mailing:client-list")
 
     def get_queryset(self):
+        if self.request.user.is_staff:
+            return Client.objects.all()
         return Client.objects.filter(owner=self.request.user)
 
     def form_valid(self, form):
@@ -129,11 +149,14 @@ class ClientDeleteView(LoginRequiredMixin, DeleteView):
     success_url = reverse_lazy("mailing:client-list")
 
     def get_queryset(self):
+        if self.request.user.is_staff:
+            return Client.objects.all()
         return Client.objects.filter(owner=self.request.user)
 
     def delete(self, request, *args, **kwargs):
-        messages.success(self.request, "Клиент удалён.")
+        messages.success(request, "Клиент удалён.")
         return super().delete(request, *args, **kwargs)
+
 
 
 # 📤 Рассылки
@@ -142,8 +165,11 @@ class MailingListView(LoginRequiredMixin, ListView):
     template_name = "mailing/mailing_list.html"
     context_object_name = "mailings"
 
-    def get_queryset(self):
+    def get_queryset(self):  # ✅ модератор видит все рассылки
+        if self.request.user.is_staff:
+            return Mailing.objects.all().order_by("-start_time")
         return Mailing.objects.filter(owner=self.request.user).order_by("-start_time")
+
 
 
 @method_decorator(cache_control(public=True, max_age=300), name="dispatch")
@@ -152,6 +178,11 @@ class MailingCreateView(LoginRequiredMixin, CreateView):
     form_class = MailingForm
     template_name = "mailing/mailing_form.html"
     success_url = reverse_lazy("mailing:mailing-list")
+
+    def get_form_kwargs(self):  # ✅ передаём пользователя в форму
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
 
     def form_valid(self, form):
         form.instance.owner = self.request.user
@@ -167,6 +198,11 @@ class MailingUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_queryset(self):
         return Mailing.objects.filter(owner=self.request.user)
+
+    def get_form_kwargs(self):  # ✅ тоже передаём пользователя
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
 
     def form_valid(self, form):
         messages.success(self.request, "Рассылка обновлена.")
@@ -187,8 +223,21 @@ class MailingDeleteView(LoginRequiredMixin, DeleteView):
 
 
 # 🚀 Ручной запуск рассылки
+from django.contrib.auth.decorators import login_required
+
+# 🚀 Ручной запуск рассылки
+@login_required
 def send_mailing_now(request, pk):
-    mailing = get_object_or_404(Mailing, pk=pk, owner=request.user)
+    mailing = get_object_or_404(Mailing, pk=pk)
+
+    # 🔐 Проверка доступа: только владелец или модератор
+    if not request.user.is_staff and mailing.owner != request.user:
+        messages.error(request, "У вас нет доступа к этой рассылке.")
+        return redirect("mailing:mailing-list")
+
+    if mailing.status == "Завершена":  # ✅ защита от повторной отправки
+        messages.warning(request, "Нельзя отправить завершённую рассылку.")
+        return redirect("mailing:mailing-list")
 
     success = True
     response_log = ""
@@ -217,6 +266,7 @@ def send_mailing_now(request, pk):
     return redirect("mailing:mailing-list")
 
 
+
 # 📄 Просмотр логов рассылки
 class MailingLogView(LoginRequiredMixin, DetailView):
     model = Mailing
@@ -224,9 +274,21 @@ class MailingLogView(LoginRequiredMixin, DetailView):
     context_object_name = "mailing"
 
     def get_queryset(self):
+        if self.request.user.is_staff:  # ✅ модератор видит все логи
+            return Mailing.objects.all()
         return Mailing.objects.filter(owner=self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["attempts"] = self.object.attempts.order_by("-time")
         return context
+
+
+# ⛔ Принудительное завершение рассылки
+@staff_member_required
+def force_complete_mailing(request, pk):
+    mailing = get_object_or_404(Mailing, pk=pk)
+    mailing.status = "Завершена"
+    mailing.save()
+    messages.success(request, "Рассылка принудительно завершена.")
+    return redirect("mailing:mailing-list")

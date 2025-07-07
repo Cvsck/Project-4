@@ -2,6 +2,7 @@
 {% block content %}
   <h2 class="mb-4">Мои рассылки</h2>
   <a class="btn btn-primary mb-3" href="{% url 'mailing:mailing-create' %}">➕ Создать рассылку</a>
+
   <ul class="list-group">
     {% for mailing in mailings %}
       <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -12,10 +13,38 @@
             Периодичность: {{ mailing.get_periodicity_display }}
           </small>
         </div>
+
         <span class="btn-group">
-          <a class="btn btn-sm btn-outline-primary" href="{% url 'mailing:mailing-send' mailing.pk %}" title="Отправить сейчас">📤</a>
-          <a class="btn btn-sm btn-outline-secondary" href="{% url 'mailing:mailing-edit' mailing.pk %}" title="Редактировать">✏️</a>
-          <a class="btn btn-sm btn-outline-danger" href="{% url 'mailing:mailing-delete' mailing.pk %}" title="Удалить">🗑️</a>
+          <!-- Отправить -->
+          <a class="btn btn-sm btn-outline-primary"
+             href="{% url 'mailing:mailing-send' mailing.pk %}"
+             title="Отправить сейчас">📤</a>
+
+          <!-- Редактировать -->
+          <a class="btn btn-sm btn-outline-secondary"
+             href="{% url 'mailing:mailing-edit' mailing.pk %}"
+             title="Редактировать">✏️</a>
+
+          <!-- Удалить -->
+          <a class="btn btn-sm btn-outline-danger"
+             href="{% url 'mailing:mailing-delete' mailing.pk %}"
+             title="Удалить">🗑️</a>
+
+          <!-- Логи -->
+          <a class="btn btn-sm btn-outline-dark"
+             href="{% url 'mailing:mailing-logs' mailing.pk %}"
+             title="Посмотреть логи">📄</a>
+
+          <!-- Завершить (только для модератора) -->
+          {% if user.is_staff and mailing.status != "Завершена" %}
+            <form method="post"
+                  action="{% url 'mailing:force-complete' mailing.pk %}"
+                  style="display: inline;">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-outline-warning"
+                      title="Принудительно завершить">⛔</button>
+            </form>
+          {% endif %}
         </span>
       </li>
     {% empty %}

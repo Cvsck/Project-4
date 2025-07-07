@@ -46,3 +46,11 @@ class MailingForm(forms.ModelForm):
             "message": forms.Select(attrs={"class": "form-select"}),
             "clients": forms.CheckboxSelectMultiple(),
         }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user", None)
+        super().__init__(*args, **kwargs)
+        if user:
+            self.fields["message"].queryset = Message.objects.filter(owner=user)
+            self.fields["clients"].queryset = Client.objects.filter(owner=user)
+

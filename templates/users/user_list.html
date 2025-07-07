@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Пользователи</h2>
+<ul class="list-group">
+  {% for user in users %}
+    <li class="list-group-item d-flex justify-content-between align-items-center" id="user-{{ user.pk }}">
+      <span>{{ user.email }}</span>
+      <div id="action-{{ user.pk }}">
+        {% if not user.is_blocked %}
+          <button class="btn btn-sm btn-outline-danger"
+                  onclick="toggleBlock({{ user.pk }}, true)">⛔ Заблокировать</button>
+        {% else %}
+          <button class="btn btn-sm btn-outline-success"
+                  onclick="toggleBlock({{ user.pk }}, false)">🔓 Разблокировать</button>
+        {% endif %}
+      </div>
+    </li>
+  {% endfor %}
+</ul>
+
+<script>
+  function toggleBlock(userId, block) {
+    const url = block
+      ? `/users/${userId}/block/`
+      : `/users/${userId}/unblock/`;
+
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": "{{ csrf_token }}",
+        "X-Requested-With": "XMLHttpRequest"
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      const actionDiv = document.getElementById(`action-${userId}`);
+      if (data.status === "blocked") {
+        actionDiv.innerHTML = `<button class="btn btn-sm btn-outline-success" onclick="toggleBlock(${userId}, false)">🔓 Разблокировать</button>`;
+      } else if (data.status === "unblocked") {
+        actionDiv.innerHTML = `<button class="btn btn-sm btn-outline-danger" onclick="toggleBlock(${userId}, true)">⛔ Заблокировать</button>`;
+      }
+    });
+  }
+</script>
+{% endblock %}
